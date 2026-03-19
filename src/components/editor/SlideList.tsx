@@ -1,7 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Slide, PresentationTheme } from '@/types/presentation';
 import { cn } from '@/lib/utils';
-import { GripVertical, Plus } from 'lucide-react';
+import { Plus, Trash2, Copy, MoreVertical, Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface Props {
   slides: Slide[];
@@ -9,70 +16,144 @@ interface Props {
   theme: PresentationTheme;
   onSelectSlide: (index: number) => void;
   onAddSlide: () => void;
+  onDeleteSlide?: (index: number) => void;
+  onDuplicateSlide?: (index: number) => void;
 }
 
-export default function SlideList({ slides, activeIndex, theme, onSelectSlide, onAddSlide }: Props) {
+export default function SlideList({ slides, activeIndex, theme, onSelectSlide, onAddSlide, onDeleteSlide, onDuplicateSlide }: Props) {
   const { palette } = theme.tokens;
+  const [hoveredSlide, setHoveredSlide] = useState<number | null>(null);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-3 py-3 border-b border-border flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Slides</span>
-        <span className="text-xs text-muted-foreground">{slides.length}</span>
-      </div>
-      
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2">
-        {slides.map((slide, i) => (
-          <button
-            key={slide.id}
-            onClick={() => onSelectSlide(i)}
-            className={cn(
-              'w-full group relative rounded-lg border transition-all duration-150',
-              i === activeIndex
-                ? 'thumbnail-active border-primary'
-                : 'border-border hover:border-muted-foreground/40'
-            )}
-          >
-            {/* Slide number */}
-            <div className="absolute -left-0.5 top-1 text-[10px] text-muted-foreground font-medium">
-              {i + 1}
-            </div>
-            {/* Mini preview */}
-            <div
-              className="aspect-video rounded-md overflow-hidden mx-2 my-2"
-              style={{ backgroundColor: palette.bg }}
-            >
-              <div className="w-full h-full flex flex-col items-center justify-center p-3 gap-1">
-                {slide.title && (
-                  <div
-                    className="text-[6px] font-bold text-center leading-tight truncate w-full"
-                    style={{ color: palette.primary }}
-                  >
-                    {slide.title}
-                  </div>
-                )}
-                {slide.subtitle && (
-                  <div
-                    className="text-[5px] text-center truncate w-full opacity-60"
-                    style={{ color: palette.text }}
-                  >
-                    {slide.subtitle}
-                  </div>
-                )}
-              </div>
-            </div>
-          </button>
-        ))}
+    <div className="w-64 bg-slate-50 border-r border-slate-200 flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="p-4 border-b border-slate-200 flex-shrink-0 bg-white">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm font-semibold text-slate-700">Slides</span>
+          <span className="text-xs text-slate-400">{slides.length}</span>
+        </div>
+        <Button
+          onClick={onAddSlide}
+          className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-md text-white"
+          size="sm"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Add Slide
+        </Button>
       </div>
 
-      {/* Add slide button */}
-      <div className="px-3 py-3 border-t border-border">
+      {/* Slides list */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        {slides.map((slide, idx) => (
+          <div
+            key={slide.id}
+            className={cn(
+              'group relative rounded-xl transition-all duration-200 cursor-pointer',
+              activeIndex === idx
+                ? 'ring-2 ring-indigo-600 ring-offset-2 shadow-lg scale-[1.02]'
+                : 'hover:shadow-md hover:scale-[1.01]'
+            )}
+            onClick={() => onSelectSlide(idx)}
+            onMouseEnter={() => setHoveredSlide(idx)}
+            onMouseLeave={() => setHoveredSlide(null)}
+          >
+            {/* Slide number badge */}
+            <div className={cn(
+              'absolute -left-1 -top-1 z-10 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-md',
+              activeIndex === idx
+                ? 'bg-indigo-600 text-white'
+                : 'bg-white text-slate-600 border border-slate-200'
+            )}>
+              {idx + 1}
+            </div>
+
+            {/* Actions menu */}
+            {(hoveredSlide === idx || activeIndex === idx) && (onDeleteSlide || onDuplicateSlide) && (
+              <div className="absolute right-1 top-1 z-10">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="w-6 h-6 rounded-full bg-white/90 backdrop-blur shadow-sm flex items-center justify-center hover:bg-white">
+                      <MoreVertical className="w-3 h-3 text-slate-600" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-40">
+                    {onDuplicateSlide && (
+                      <DropdownMenuItem onClick={e => { e.stopPropagation(); onDuplicateSlide(idx); }}>
+                        <Copy className="w-4 h-4 mr-2" />
+                        Duplicate
+                      </DropdownMenuItem>
+                    )}
+                    {onDeleteSlide && (
+                      <DropdownMenuItem
+                        onClick={e => { e.stopPropagation(); onDeleteSlide(idx); }}
+                        className="text-red-600 focus:text-red-600"
+                        disabled={slides.length <= 1}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+
+            {/* Slide preview */}
+            <div className="bg-white rounded-lg overflow-hidden shadow-sm border border-slate-200">
+              <div
+                className="w-full aspect-[16/9] rounded-md overflow-hidden"
+                style={{ backgroundColor: palette.bg }}
+              >
+                <div
+                  className="h-[12%] px-2 flex items-center"
+                  style={{
+                    background: `linear-gradient(135deg, ${palette.primary} 0%, ${palette.secondary} 100%)`,
+                  }}
+                >
+                  <div className="text-[6px] text-white font-medium truncate">
+                    {slide.title || 'Untitled'}
+                  </div>
+                </div>
+                <div className="p-2">
+                  {slide.bullets && slide.bullets.length > 0 && (
+                    <div className="space-y-0.5">
+                      {slide.bullets.slice(0, 3).map((item, i) => (
+                        <div key={i} className="flex items-start gap-1">
+                          <div className="w-0.5 h-0.5 rounded-full mt-0.5 flex-shrink-0" style={{ backgroundColor: palette.primary }} />
+                          <div className="text-[4px] text-slate-600 line-clamp-1">{item}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Slide title */}
+            <div className="mt-2 px-1">
+              <p className="text-xs font-medium text-slate-700 truncate">
+                {slide.title || `Slide ${idx + 1}`}
+              </p>
+              {slide.layout && (
+                <p className="text-[10px] text-slate-400 capitalize">
+                  {slide.layout.replace('-', ' ')}
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {/* AI suggest slide */}
         <button
           onClick={onAddSlide}
-          className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors text-xs"
+          className="w-full aspect-[16/9] rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-2 hover:border-indigo-400 hover:bg-indigo-50/50 transition-all group"
         >
-          <Plus className="w-3.5 h-3.5" />
-          Add Slide
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <Sparkles className="w-5 h-5 text-indigo-600" />
+          </div>
+          <span className="text-xs text-slate-500 group-hover:text-indigo-600">
+            Add with AI
+          </span>
         </button>
       </div>
     </div>

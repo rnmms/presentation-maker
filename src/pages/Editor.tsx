@@ -13,7 +13,6 @@ export default function EditorPage() {
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
 
-  // Load presentation from session or create default
   const [presentation, setPresentation] = useState<Presentation>(() => {
     const stored = sessionStorage.getItem('presentation');
     if (stored) {
@@ -33,7 +32,6 @@ export default function EditorPage() {
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const activeSlide = presentation.slides[activeSlideIndex];
 
-  // Auto-scale canvas to fit container
   const updateScale = useCallback(() => {
     if (!canvasContainerRef.current) return;
     const { width, height } = canvasContainerRef.current.getBoundingClientRect();
@@ -67,32 +65,33 @@ export default function EditorPage() {
     setActiveSlideIndex(presentation.slides.length);
   };
 
-  const deleteSlide = () => {
+  const deleteSlide = (index?: number) => {
+    const idx = index ?? activeSlideIndex;
     if (presentation.slides.length <= 1) {
       toast.error('Cannot delete the last slide');
       return;
     }
     setPresentation(prev => ({
       ...prev,
-      slides: prev.slides.filter((_, i) => i !== activeSlideIndex),
+      slides: prev.slides.filter((_, i) => i !== idx),
     }));
-    setActiveSlideIndex(Math.max(0, activeSlideIndex - 1));
+    setActiveSlideIndex(Math.max(0, idx - 1));
   };
 
-  const duplicateSlide = () => {
-    const dup = { ...activeSlide, id: Math.random().toString(36).substring(2, 11) };
+  const duplicateSlide = (index?: number) => {
+    const idx = index ?? activeSlideIndex;
+    const dup = { ...presentation.slides[idx], id: Math.random().toString(36).substring(2, 11) };
     setPresentation(prev => ({
       ...prev,
       slides: [
-        ...prev.slides.slice(0, activeSlideIndex + 1),
+        ...prev.slides.slice(0, idx + 1),
         dup,
-        ...prev.slides.slice(activeSlideIndex + 1),
+        ...prev.slides.slice(idx + 1),
       ],
     }));
-    setActiveSlideIndex(activeSlideIndex + 1);
+    setActiveSlideIndex(idx + 1);
   };
 
-  // Keyboard navigation
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
@@ -108,34 +107,33 @@ export default function EditorPage() {
   }, [presentation.slides.length]);
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
-      {/* Toolbar */}
+    <div className="h-screen flex flex-col bg-white overflow-hidden">
       <EditorToolbar
         title={presentation.title}
         onTitleChange={title => setPresentation(prev => ({ ...prev, title }))}
         onBack={() => navigate('/')}
-        onDuplicate={duplicateSlide}
-        onDelete={deleteSlide}
+        onDuplicate={() => duplicateSlide()}
+        onDelete={() => deleteSlide()}
         slideCount={presentation.slides.length}
         activeIndex={activeSlideIndex}
       />
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left sidebar - slide thumbnails */}
-        <div className="w-52 shrink-0 border-r border-border bg-card">
-          <SlideList
-            slides={presentation.slides}
-            activeIndex={activeSlideIndex}
-            theme={presentation.theme}
-            onSelectSlide={setActiveSlideIndex}
-            onAddSlide={addSlide}
-          />
-        </div>
+        {/* Left sidebar */}
+        <SlideList
+          slides={presentation.slides}
+          activeIndex={activeSlideIndex}
+          theme={presentation.theme}
+          onSelectSlide={setActiveSlideIndex}
+          onAddSlide={addSlide}
+          onDeleteSlide={deleteSlide}
+          onDuplicateSlide={duplicateSlide}
+        />
 
         {/* Center canvas */}
         <div
           ref={canvasContainerRef}
-          className="flex-1 flex items-center justify-center bg-slide-canvas overflow-hidden relative"
+          className="flex-1 flex items-center justify-center bg-slate-100 overflow-hidden relative"
         >
           {activeSlide && (
             <div style={{ width: 1920 * scale, height: 1080 * scale }}>
@@ -150,7 +148,7 @@ export default function EditorPage() {
           )}
 
           {/* Zoom indicator */}
-          <div className="absolute bottom-4 right-4 px-3 py-1.5 rounded-full bg-card border border-border text-xs text-muted-foreground font-mono">
+          <div className="absolute bottom-4 right-4 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs text-slate-500 font-mono shadow-sm">
             {Math.round(scale * 100)}%
           </div>
         </div>
