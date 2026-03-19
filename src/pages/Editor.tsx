@@ -7,6 +7,7 @@ import SlideCanvas from '@/components/editor/SlideCanvas';
 import SlideList from '@/components/editor/SlideList';
 import EditorToolbar from '@/components/editor/EditorToolbar';
 import { toast } from 'sonner';
+import { exportToPptx } from '@/lib/pptx-export';
 
 export default function EditorPage() {
   const navigate = useNavigate();
@@ -114,6 +115,16 @@ export default function EditorPage() {
         onBack={() => navigate('/')}
         onDuplicate={() => duplicateSlide()}
         onDelete={() => deleteSlide()}
+        onExportPptx={async () => {
+          try {
+            toast.info('Generating PPTX...');
+            await exportToPptx(presentation);
+            toast.success('PPTX downloaded!');
+          } catch (e) {
+            console.error(e);
+            toast.error('Failed to export PPTX');
+          }
+        }}
         slideCount={presentation.slides.length}
         activeIndex={activeSlideIndex}
       />

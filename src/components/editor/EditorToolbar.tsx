@@ -19,12 +19,13 @@ interface Props {
   onBack: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onExportPptx: () => void;
   slideCount: number;
   activeIndex: number;
 }
 
 export default function EditorToolbar({
-  title, onTitleChange, onBack, onDuplicate, onDelete,
+  title, onTitleChange, onBack, onDuplicate, onDelete, onExportPptx,
   slideCount, activeIndex
 }: Props) {
   const [isEditing, setIsEditing] = useState(false);
@@ -101,7 +102,7 @@ export default function EditorToolbar({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={onExportPptx}>
               <FileText className="w-4 h-4 mr-2" />
               PowerPoint (.pptx)
             </DropdownMenuItem>

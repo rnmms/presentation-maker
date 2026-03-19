@@ -5,8 +5,9 @@ import ContentStep from '@/components/slideai/ContentStep';
 import GeneratingView from '@/components/slideai/GeneratingView';
 import { PresentationTheme, WizardStep } from '@/types/presentation';
 import { THEME_CATALOG } from '@/lib/themes';
-import { createSampleSlides } from '@/lib/slide-utils';
+import { generatePresentation } from '@/lib/ai-generate';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export default function SlideAIPage() {
   const navigate = useNavigate();
@@ -19,20 +20,32 @@ export default function SlideAIPage() {
     setStep('content');
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     setStep('generating');
-    setTimeout(() => {
-      const slides = createSampleSlides();
+
+    try {
+      const result = await generatePresentation({
+        prompt: contentText,
+        length: 'informative',
+        tone: 'professional',
+        audience: 'general',
+      });
+
       sessionStorage.setItem('presentation', JSON.stringify({
         id: Math.random().toString(36).substring(2, 11),
-        title: contentText.slice(0, 50) || 'Untitled Presentation',
-        slides,
+        title: result.title,
+        slides: result.slides,
         theme: selectedTheme || THEME_CATALOG[0],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }));
+
       navigate('/editor');
-    }, 3000);
+    } catch (error) {
+      console.error('Generation failed:', error);
+      toast.error('Failed to generate presentation. Please try again.');
+      setStep('content');
+    }
   };
 
   const handleBack = () => {
