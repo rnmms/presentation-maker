@@ -6,6 +6,8 @@ import { createEmptySlide, createSampleSlides } from '@/lib/slide-utils';
 import SlideCanvas from '@/components/editor/SlideCanvas';
 import SlideList from '@/components/editor/SlideList';
 import EditorToolbar from '@/components/editor/EditorToolbar';
+import SpeakerNotes from '@/components/editor/SpeakerNotes';
+import CompactRightPanel from '@/components/editor/CompactRightPanel';
 import { toast } from 'sonner';
 import { exportToPptx } from '@/lib/pptx-export';
 
@@ -93,6 +95,20 @@ export default function EditorPage() {
     setActiveSlideIndex(idx + 1);
   };
 
+  const handleNotesChange = (notes: string) => {
+    if (!activeSlide) return;
+    updateSlide({ ...activeSlide, notes });
+  };
+
+  const handleThemeChange = (theme: Presentation['theme']) => {
+    setPresentation(prev => ({ ...prev, theme, updatedAt: new Date().toISOString() }));
+  };
+
+  const handleLayoutChange = (layout: string) => {
+    if (!activeSlide) return;
+    updateSlide({ ...activeSlide, layout });
+  };
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
@@ -141,28 +157,43 @@ export default function EditorPage() {
           onDuplicateSlide={duplicateSlide}
         />
 
-        {/* Center canvas */}
-        <div
-          ref={canvasContainerRef}
-          className="flex-1 flex items-center justify-center bg-slate-100 overflow-hidden relative"
-        >
-          {activeSlide && (
-            <div style={{ width: 1920 * scale, height: 1080 * scale }}>
-              <SlideCanvas
-                slide={activeSlide}
-                theme={presentation.theme}
-                scale={scale}
-                isEditing={true}
-                onUpdateSlide={updateSlide}
-              />
-            </div>
-          )}
+        {/* Center: canvas + speaker notes */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div
+            ref={canvasContainerRef}
+            className="flex-1 flex items-center justify-center bg-slate-100 overflow-hidden relative"
+          >
+            {activeSlide && (
+              <div style={{ width: 1920 * scale, height: 1080 * scale }}>
+                <SlideCanvas
+                  slide={activeSlide}
+                  theme={presentation.theme}
+                  scale={scale}
+                  isEditing={true}
+                  onUpdateSlide={updateSlide}
+                />
+              </div>
+            )}
 
-          {/* Zoom indicator */}
-          <div className="absolute bottom-4 right-4 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs text-slate-500 font-mono shadow-sm">
-            {Math.round(scale * 100)}%
+            {/* Zoom indicator */}
+            <div className="absolute bottom-4 right-4 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs text-slate-500 font-mono shadow-sm">
+              {Math.round(scale * 100)}%
+            </div>
           </div>
+
+          <SpeakerNotes
+            notes={activeSlide?.notes ?? ''}
+            onChange={handleNotesChange}
+          />
         </div>
+
+        {/* Right panel */}
+        <CompactRightPanel
+          theme={presentation.theme}
+          onThemeChange={handleThemeChange}
+          onLayoutChange={handleLayoutChange}
+          currentLayout={activeSlide?.layout ?? 'content'}
+        />
       </div>
     </div>
   );
