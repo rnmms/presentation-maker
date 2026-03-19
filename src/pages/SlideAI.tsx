@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import TemplateGallery from '@/components/slideai/TemplateGallery';
 import ContentStep from '@/components/slideai/ContentStep';
 import GeneratingView from '@/components/slideai/GeneratingView';
-import { PresentationTheme, Slide, WizardStep } from '@/types/presentation';
+import { PresentationTheme, WizardStep } from '@/types/presentation';
 import { THEME_CATALOG } from '@/lib/themes';
 import { createSampleSlides } from '@/lib/slide-utils';
 import { useNavigate } from 'react-router-dom';
