@@ -1,18 +1,37 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Check, ChevronRight, ChevronDown, Target, Palette, Eye, BarChart3, ArrowUpDown, X, ArrowLeft } from 'lucide-react';
+import { Search, Check, ChevronRight, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PresentationTheme } from '@/types/presentation';
-import { THEME_CATALOG } from '@/lib/themes';
+import { TEMPLATE_REGISTRY, templateToTheme, getAllCategories, TemplateDefinition } from '@/lib/template-registry';
 import StepIndicator from './StepIndicator';
 import { useNavigate } from 'react-router-dom';
 
-function ThemeCard({ theme, isSelected, onSelect }: { theme: PresentationTheme; isSelected: boolean; onSelect: (t: PresentationTheme) => void }) {
+function ThemeCard({ template, isSelected, onSelect }: { template: TemplateDefinition; isSelected: boolean; onSelect: (t: TemplateDefinition) => void }) {
+  const [isHovering, setIsHovering] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  React.useEffect(() => {
+    if (!isHovering || template.slideImages.length === 0) {
+      setCurrentSlide(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setCurrentSlide(prev => (prev + 1) % (template.slideImages.length + 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isHovering, template.slideImages.length]);
+
+  const displayImage = currentSlide === 0 ? template.coverImage : template.slideImages[currentSlide - 1];
+  const hasImages = template.coverImage !== '';
+
   return (
     <motion.button
       layout
       whileHover={{ y: -6 }}
-      onClick={() => onSelect(theme)}
+      onHoverStart={() => setIsHovering(true)}
+      onHoverEnd={() => setIsHovering(false)}
+      onClick={() => onSelect(template)}
       className={cn(
         'relative group rounded-xl overflow-hidden transition-all duration-300 text-left w-full',
         isSelected
@@ -20,25 +39,52 @@ function ThemeCard({ theme, isSelected, onSelect }: { theme: PresentationTheme; 
           : 'hover:shadow-xl hover:shadow-purple-500/10'
       )}
     >
-      {/* Color preview */}
       <div className="aspect-video relative overflow-hidden bg-slate-900">
-        <div
-          className="w-full h-full flex flex-col items-center justify-center gap-3 p-6"
-          style={{ backgroundColor: theme.tokens.palette.bg }}
-        >
-          <div className="w-3/4 h-4 rounded-full" style={{ backgroundColor: theme.tokens.palette.primary }} />
-          <div className="w-1/2 h-3 rounded-full opacity-60" style={{ backgroundColor: theme.tokens.palette.secondary }} />
-          <div className="flex gap-2 mt-2">
-            {theme.previewColors.map((c, i) => (
-              <div key={i} className="w-6 h-6 rounded-full ring-1 ring-white/20" style={{ backgroundColor: c }} />
-            ))}
+        {hasImages ? (
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={displayImage}
+              src={displayImage}
+              alt={template.name}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="w-full h-full object-cover"
+            />
+          </AnimatePresence>
+        ) : (
+          <div
+            className="w-full h-full flex flex-col items-center justify-center gap-3 p-6"
+            style={{ backgroundColor: template.colors.bg }}
+          >
+            <div className="w-3/4 h-4 rounded-full" style={{ backgroundColor: template.colors.primary }} />
+            <div className="w-1/2 h-3 rounded-full opacity-60" style={{ backgroundColor: template.colors.secondary }} />
+            <div className="flex gap-2 mt-2">
+              {[template.colors.primary, template.colors.secondary, template.colors.accent, template.colors.bg].map((c, i) => (
+                <div key={i} className="w-6 h-6 rounded-full ring-1 ring-white/20" style={{ backgroundColor: c }} />
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
-        {/* Selected check */}
+        {/* Slide indicators on hover */}
+        {isHovering && hasImages && template.slideImages.length > 0 && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+            {[template.coverImage, ...template.slideImages].slice(0, 4).map((_, idx) => (
+              <div
+                key={idx}
+                className={cn(
+                  'h-1 rounded-full transition-all',
+                  currentSlide === idx ? 'w-4 bg-white' : 'w-1 bg-white/50'
+                )}
+              />
+            ))}
+          </div>
+        )}
+
         {isSelected && (
           <motion.div
             initial={{ scale: 0 }}
@@ -50,15 +96,14 @@ function ThemeCard({ theme, isSelected, onSelect }: { theme: PresentationTheme; 
         )}
       </div>
 
-      {/* Info */}
       <div className="p-3 bg-slate-900/80 backdrop-blur-sm">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h3 className="font-medium text-white text-sm truncate">{theme.name}</h3>
-            <p className="text-xs text-slate-400 mt-0.5">{theme.category}</p>
+            <h3 className="font-medium text-white text-sm truncate">{template.name}</h3>
+            <p className="text-xs text-slate-400 mt-0.5">{template.category}</p>
           </div>
           <div className="flex gap-1 flex-shrink-0">
-            {theme.previewColors.slice(0, 2).map((color, idx) => (
+            {[template.colors.primary, template.colors.secondary].map((color, idx) => (
               <div key={idx} className="w-3 h-3 rounded-full ring-1 ring-white/20" style={{ backgroundColor: color }} />
             ))}
           </div>
@@ -78,18 +123,24 @@ export default function TemplateGallery({ onSelect, selectedTheme }: Props) {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
 
-  const categories = useMemo(() => {
-    const cats = ['All', ...new Set(THEME_CATALOG.map(t => t.category))];
-    return cats;
-  }, []);
+  const categories = useMemo(() => getAllCategories(), []);
 
   const filtered = useMemo(() => {
-    return THEME_CATALOG.filter(t => {
+    return TEMPLATE_REGISTRY.filter(t => {
       if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (activeCategory !== 'All' && t.category !== activeCategory) return false;
       return true;
     });
   }, [search, activeCategory]);
+
+  const handleSelect = (template: TemplateDefinition) => {
+    onSelect(templateToTheme(template));
+  };
+
+  // Find the matching template for the selected theme (for the bottom CTA)
+  const selectedTemplate = selectedTheme
+    ? TEMPLATE_REGISTRY.find(t => t.id === selectedTheme.id)
+    : null;
 
   return (
     <motion.div
@@ -164,12 +215,12 @@ export default function TemplateGallery({ onSelect, selectedTheme }: Props) {
         {/* Template Grid */}
         <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           <AnimatePresence mode="popLayout">
-            {filtered.map(theme => (
+            {filtered.map(template => (
               <ThemeCard
-                key={theme.id}
-                theme={theme}
-                isSelected={selectedTheme?.id === theme.id}
-                onSelect={onSelect}
+                key={template.id}
+                template={template}
+                isSelected={selectedTheme?.id === template.id}
+                onSelect={handleSelect}
               />
             ))}
           </AnimatePresence>
@@ -193,12 +244,20 @@ export default function TemplateGallery({ onSelect, selectedTheme }: Props) {
           >
             <div className="max-w-6xl mx-auto flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div
-                  className="w-16 h-9 rounded-lg ring-2 ring-purple-500 flex items-center justify-center"
-                  style={{ backgroundColor: selectedTheme.tokens.palette.bg }}
-                >
-                  <div className="w-8 h-1.5 rounded-full" style={{ backgroundColor: selectedTheme.tokens.palette.primary }} />
-                </div>
+                {selectedTemplate && selectedTemplate.coverImage ? (
+                  <img
+                    src={selectedTemplate.coverImage}
+                    alt={selectedTheme.name}
+                    className="w-16 h-9 rounded-lg ring-2 ring-purple-500 object-cover"
+                  />
+                ) : (
+                  <div
+                    className="w-16 h-9 rounded-lg ring-2 ring-purple-500 flex items-center justify-center"
+                    style={{ backgroundColor: selectedTheme.tokens.palette.bg }}
+                  >
+                    <div className="w-8 h-1.5 rounded-full" style={{ backgroundColor: selectedTheme.tokens.palette.primary }} />
+                  </div>
+                )}
                 <div>
                   <p className="font-medium text-white text-sm">{selectedTheme.name}</p>
                   <p className="text-xs text-slate-400">Selected</p>
